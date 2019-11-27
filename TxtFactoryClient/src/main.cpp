@@ -153,7 +153,7 @@ class callback : public virtual mqtt::callback
 					default:
 						break;
 					}
-				}TOPIC_OUTPUT_STATE_ACK
+				}
 			} catch (const Json::RuntimeError& exc) {
 				std::cout << "Error: " << exc.what() << std::endl;
 			}
