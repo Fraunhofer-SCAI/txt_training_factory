@@ -44,6 +44,11 @@ LINKER_FLAGS_LIBS = -l"SDLWidgetsLib" \
 	-l"ROBOProLib" \
 	-l"MotorIOLib" \
 	-l"KeLibTxt"
+	
+#check if TOOLCHAIN_BIN_PATH environment variable is set:
+ifndef TOOLCHAIN_BIN_PATH
+$(error TOOLCHAIN_BIN_PATH is undefined! Set with 'export TOOLCHAIN_BIN_PATH=/path/to/toolchain/bin')
+endif
 
 #create empty dirs
 $(shell mkdir -p bin)
