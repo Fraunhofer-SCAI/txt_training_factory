@@ -23,7 +23,7 @@
 #include "spdlog/async.h"
 
 // Version info
-#define VERSION_HEX ((0<<16)|(8<<8)|(0<<0))
+#define VERSION_HEX ((0<<16)|(8<<8)|(1<<0))
 char TxtAppVer[32];
 
 unsigned int DebugFlags;
@@ -348,7 +348,46 @@ class callback : public virtual mqtt::callback
 				std::cout << "Error: " << exc.what() << std::endl;
 			}
 			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK.", 0);
-		} else if (msg->get_topic() == TOPIC_OUTPUT_NFC_DS) {
+		}
+		else if (msg->get_topic() == TOPIC_OUTPUT_PICKUP) 
+		{
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "DETECTED pickup: {}", msg->get_topic());
+			std::stringstream ssin(msg->to_string());
+			Json::Value root;
+			try {
+				ssin >> root;
+				std::string sts = root["ts"].asString();
+				SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "  ts:{}", sts);
+				if (ft::trycheckTimestampTTL(sts))
+				{
+					std::string sid = root["id"].asString();
+					SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "  tag_uid:{}", sid);
+					vgr_.requestPickup(sid);
+				}
+			} catch (const Json::RuntimeError& exc) {
+				std::cout << "Error: " << exc.what() << std::endl;
+			}
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK.", 0);
+		}
+		else if (msg->get_topic() == TOPIC_OUTPUT_STORE) {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "DETECTED store: {}", msg->get_topic());
+			std::stringstream ssin(msg->to_string());
+			Json::Value root;
+			try {
+				ssin >> root;
+				std::string sts = root["ts"].asString();
+				SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "  ts:{}", sts);
+				if (ft::trycheckTimestampTTL(sts))
+				{
+					vgr_.storeWorkpieceFromDSOIntoHBW();
+				}
+			} catch (const Json::RuntimeError& exc) {
+				std::cout << "Error: " << exc.what() << std::endl;
+			}
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK.", 0);
+		}
+		else if (msg->get_topic() == TOPIC_OUTPUT_NFC_DS) 
+		{
 			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "DETECTED nfc ds:{}", msg->get_topic());
 			std::stringstream ssin(msg->to_string());
 			Json::Value root;
@@ -371,7 +410,8 @@ class callback : public virtual mqtt::callback
 				std::cout << "Error: " << exc.what() << std::endl;
 			}
 			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK.", 0);
-		} else if (msg->get_topic() == TOPIC_LOCAL_SSC_JOY) {
+		} 
+		else if (msg->get_topic() == TOPIC_LOCAL_SSC_JOY) {
 			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "DETECTED joy but:{}", msg->get_topic());
 			std::stringstream ssin(msg->to_string());
 			Json::Value root;
@@ -501,6 +541,29 @@ class callback : public virtual mqtt::callback
 						break;
 					default:
 						break;
+					}
+				}
+			} catch (const Json::RuntimeError& exc) {
+				std::cout << "Error: " << exc.what() << std::endl;
+			}
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK.", 0);
+		}else if (msg->get_topic() == TOPIC_LOCAL_HBW_FAULT) {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "DETECTED HBW Fault :{}", msg->get_topic());
+			std::stringstream ssin(msg->to_string());
+			Json::Value root;
+			try {
+				ssin >> root;
+				std::string sts = root["ts"].asString();
+				if (ft::trycheckTimestampTTL(sts))
+				{
+					ft::TxtHbwAckCode_t code = (ft::TxtHbwAckCode_t)root["code"].asInt();
+					SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "  ts:{} code:{}", sts, (int)code);
+
+					switch (code)
+					{
+						default:
+							vgr_.requestHBWFault();
+							break;
 					}
 				}
 			} catch (const Json::RuntimeError& exc) {

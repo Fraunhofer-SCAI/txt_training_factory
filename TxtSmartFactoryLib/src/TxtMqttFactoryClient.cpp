@@ -3,6 +3,7 @@
  *
  *  Created on: 22.01.2018
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 /* DEBUG
@@ -195,11 +196,14 @@ void TxtMqttFactoryClient::disconnect(long int timeout) {
 			//remote
 			unsubTopic(TOPIC_OUTPUT_STATE_ACK, timeout);
 			unsubTopic(TOPIC_OUTPUT_ORDER, timeout);
+			unsubTopic(TOPIC_OUTPUT_PICKUP, timeout);
+			unsubTopic(TOPIC_OUTPUT_STORE, timeout);
 			unsubTopic(TOPIC_OUTPUT_NFC_DS, timeout);
 			//local
 			unsubTopic(TOPIC_LOCAL_SSC_JOY, timeout);
 			unsubTopic(TOPIC_LOCAL_MPO_ACK, timeout);
 			unsubTopic(TOPIC_LOCAL_HBW_ACK, timeout);
+			unsubTopic(TOPIC_LOCAL_HBW_FAULT, timeout);
 			unsubTopic(TOPIC_LOCAL_SLD_ACK, timeout);
 		}
 		else if (clientname == "TxtFactorySLD")
@@ -298,11 +302,14 @@ bool TxtMqttFactoryClient::start_consume(long int timeout) {
 			//remote
 			subTopic(TOPIC_OUTPUT_STATE_ACK, timeout);
 			subTopic(TOPIC_OUTPUT_ORDER, timeout);
+			subTopic(TOPIC_OUTPUT_PICKUP, timeout);
+			subTopic(TOPIC_OUTPUT_STORE, timeout);
 			subTopic(TOPIC_OUTPUT_NFC_DS, timeout);
 			//local
 			subTopic(TOPIC_LOCAL_SSC_JOY, timeout);
 			subTopic(TOPIC_LOCAL_MPO_ACK, timeout);
 			subTopic(TOPIC_LOCAL_HBW_ACK, timeout);
+			subTopic(TOPIC_LOCAL_HBW_FAULT, timeout);
 			subTopic(TOPIC_LOCAL_SLD_ACK, timeout);
 		}
 		else if (clientname == "TxtFactorySLD")
@@ -734,6 +741,77 @@ void TxtMqttFactoryClient::publishStateOrder(TxtOrderState ord_state, long timeo
 	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishOrder",0);
 }
 
+void TxtMqttFactoryClient::publishStatePickup(TxtOrderState ord_state, long timeout)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishOrder timeout:{}", timeout);
+	pthread_mutex_lock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_lock publishOrder",0);
+	Json::Value js_order;
+	std::ostringstream sout_order;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_order["ts"] = sts;
+		js_order["id"] = ord_state.tag_uid;
+		js_order["state"] = toString(ord_state.state);
+		js_order["type"] = toString(ord_state.type);
+		sout_order << js_order;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", TOPIC_INPUT_STATE_PICKUP);
+			auto msg_order = mqtt::make_message(TOPIC_INPUT_STATE_PICKUP, sout_order.str());
+			msg_order->set_qos(iqos);
+			msg_order->set_retained(bretained);
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "publish state pickup: {} {} {} {}", sts, ord_state.tag_uid, toString(ord_state.state), toString(ord_state.type));
+			mqtt::token_ptr conntok = cli.publish(msg_order, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishStatePickup: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishPickup",0);
+}
+
+void TxtMqttFactoryClient::publishStateStore(TxtOrderState ord_state, long timeout)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishStore timeout:{}", timeout);
+	pthread_mutex_lock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_lock publishOrder",0);
+	Json::Value js_order;
+	std::ostringstream sout_order;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_order["ts"] = sts;
+		sout_order << js_order;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", TOPIC_INPUT_STATE_STORE);
+			auto msg_order = mqtt::make_message(TOPIC_INPUT_STATE_STORE, sout_order.str());
+			msg_order->set_qos(iqos);
+			msg_order->set_retained(bretained);
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "publish state store: {}", sts);
+			mqtt::token_ptr conntok = cli.publish(msg_order, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishStateStore: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishStore",0);
+}
+
 void TxtMqttFactoryClient::publishNfcDS(TxtWorkpiece wp, History_map_t map_hist, long timeout)
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishNfcDS timeout:{}", timeout);
@@ -953,6 +1031,42 @@ void TxtMqttFactoryClient::publishVGR_Do(TxtVgrDoCode_t code, TxtWorkpiece* wp, 
 	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishVGR_Do",0);
 }
 
+void TxtMqttFactoryClient::publishVGR_Order(TxtWPType_t t, long timeout)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishVGR_Order  timeout:{}", toString(t), timeout);
+	pthread_mutex_lock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_lock publishVGR_Order",0);
+	Json::Value js_ack;
+	std::ostringstream sout_ack;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_ack["ts"] = sts;
+		js_ack["type"] = toString(t);
+
+		sout_ack << js_ack;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", TOPIC_OUTPUT_ORDER);
+			auto msg_ack = mqtt::make_message(TOPIC_OUTPUT_ORDER, sout_ack.str());
+			msg_ack->set_qos(iqos);
+			msg_ack->set_retained(bretained);
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "publish: {}", toString(t));
+			mqtt::token_ptr conntok = cli.publish(msg_ack, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishVGR_Order: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishVGR_Order",0);
+}
+
 void TxtMqttFactoryClient::publishHBW_Ack(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout)
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishHBW_Ack code:{} timeout:{}", (int)code, timeout);
@@ -990,6 +1104,52 @@ void TxtMqttFactoryClient::publishHBW_Ack(TxtHbwAckCode_t code, TxtWorkpiece* wp
 #endif
 		} catch (const mqtt::exception& exc) {
 			std::cout << "publishHBW_Ack: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishHBW_Ack",0);
+}
+
+void TxtMqttFactoryClient::publishHBW_Fault(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "publishHBW_Fault code:{} timeout:{}", (int)code, timeout);
+	pthread_mutex_lock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_lock publishHBW_Fault",0);
+	Json::Value js_ack;
+	std::ostringstream sout_ack;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_ack["ts"] = sts;
+		js_ack["code"] = (int)code;
+
+		if (wp) {
+			Json::Value js_wp;
+			js_wp["id"] = wp->tag_uid;
+			js_wp["type"] = toString(wp->type);
+			js_wp["state"] = toString(wp->state);
+			js_ack["workpiece"] = js_wp;
+		} else {
+			js_ack["workpiece"] = Json::Value::null;
+		}
+
+		sout_ack << js_ack;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", TOPIC_LOCAL_HBW_FAULT);
+			auto msg_ack = mqtt::make_message(TOPIC_LOCAL_HBW_FAULT, sout_ack.str());
+			msg_ack->set_qos(iqos);
+			msg_ack->set_retained(bretained);
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "publish: {} {}", sts, (int)code);
+			mqtt::token_ptr conntok = cli.publish(msg_ack, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishHBW_Fault: " << exc.what() << " "
 					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
 		}
 	} catch (const Json::RuntimeError& exc) {

@@ -3,6 +3,7 @@
  *
  *  Created on: 18.02.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #include "TxtHighBayWarehouseStorage.h"
@@ -215,6 +216,7 @@ bool TxtHighBayWarehouseStorage::store(TxtWorkpiece _wp)
 
 bool TxtHighBayWarehouseStorage::fetch(TxtWPType_t t)
 {
+	std::cout << toString(t) << std::endl;
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fetch {}",t);
 	nextFetchPos.x = -1; //set invalid pos
 	nextFetchPos.y = -1;
@@ -233,7 +235,7 @@ bool TxtHighBayWarehouseStorage::fetch(TxtWPType_t t)
 				p.x = i; p.y = j;
 				if (wp[i][j] == NULL)
 					continue;
-				if (wp[i][j]->type == t)
+				if (wp[i][j]->type == t && wp[i][j]->state == WP_STATE_RAW)
 				{
 					SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "t {} -> nextFetchPos {} {}",t, p.x, p.y);
 					nextFetchPos = p;
@@ -245,6 +247,47 @@ bool TxtHighBayWarehouseStorage::fetch(TxtWPType_t t)
 	if (isValidPos(nextFetchPos))
 	{
 		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK -> nextFetchPos type {} ",t);
+		delete wp[nextFetchPos.x][nextFetchPos.y];
+		wp[nextFetchPos.x][nextFetchPos.y] = 0;
+		Notify();
+		print();
+		return true;
+	}
+	return false;
+}
+
+bool TxtHighBayWarehouseStorage::fetch(TxtWorkpiece* txt_wp)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fetch wp with tag_uid {}", txt_wp->tag_uid);
+	nextFetchPos.x = -1; //set invalid pos
+	nextFetchPos.y = -1; //set invalid pos
+	if (txt_wp->tag_uid == "")
+	{
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "STORAGE_EMPTY -> return false",0);
+		return fetch(txt_wp->type);
+	} else
+	{
+		bool found = false;
+		for(int i=0;i<3 && !found;i++)
+		{
+			for(int j=2;j>=0&& !found;j--)
+			{
+				StoragePos2 p;
+				p.x = i; p.y = j;
+				if (wp[i][j] == NULL)
+					continue;
+				if (wp[i][j]->tag_uid == txt_wp->tag_uid)
+				{
+					SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "tag_uid {} -> nextFetchPos {} {}",txt_wp->tag_uid, p.x, p.y);
+					nextFetchPos = p;
+					found = true;
+				}
+			}
+		}
+	}
+	if (isValidPos(nextFetchPos))
+	{
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "OK -> nextFetchPos tag_uid {} ", txt_wp->tag_uid);
 		delete wp[nextFetchPos.x][nextFetchPos.y];
 		wp[nextFetchPos.x][nextFetchPos.y] = 0;
 		Notify();

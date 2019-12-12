@@ -3,6 +3,7 @@
  *
  *  Created on: 18.02.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef TXTHIGHBAYWAREHOUSESTORAGE_H_
@@ -43,6 +44,7 @@ public:
 	bool store(TxtWorkpiece _wp);
 	bool storeContainer();
 	bool fetch(TxtWPType_t t);
+	bool fetch(TxtWorkpiece* txt_wp);
 	bool fetchContainer();
 
 	StoragePos2 getNextStorePos() { return nextFetchPos; } //nextStorePos; }

@@ -3,6 +3,7 @@
  *
  *  Created on: 07.02.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef __DOCFSM__
@@ -153,6 +154,7 @@ void TxtHighBayWarehouse::fsmStep()
 		}
 		else
 		{
+			mqttclient->publishHBW_Fault(HBW_FETCHED, reqVGRwp, TIMEOUT_MS_PUBLISH);
 			FSM_TRANSITION( FAULT, color=red, label='error' );
 		}
 #ifdef __DOCFSM__
@@ -172,6 +174,7 @@ void TxtHighBayWarehouse::fsmStep()
 			}
 			else
 			{
+				mqttclient->publishHBW_Fault(HBW_STORED, reqVGRwp, TIMEOUT_MS_PUBLISH);
 				FSM_TRANSITION( FAULT, color=red, label='error' );
 			}
 			reqVGRstore = false;
@@ -185,14 +188,15 @@ void TxtHighBayWarehouse::fsmStep()
 	case FETCH_WP:
 	{
 		printState(FETCH_WP);
-		if (reqVGRwp && fetch(reqVGRwp->type))
+		assert(mqttclient);
+		if (reqVGRwp && fetch(reqVGRwp))
 		{
-			assert(mqttclient);
 			mqttclient->publishHBW_Ack(HBW_FETCHED, reqVGRwp, TIMEOUT_MS_PUBLISH);
 			FSM_TRANSITION( FETCH_WP_WAIT, color=blue, label='wait req' );
 		}
 		else
 		{
+			mqttclient->publishHBW_Fault(HBW_FETCHED, reqVGRwp, TIMEOUT_MS_PUBLISH);
 			FSM_TRANSITION( FAULT, color=red, label='error' );
 		}
 #ifdef __DOCFSM__

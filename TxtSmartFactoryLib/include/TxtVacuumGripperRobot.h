@@ -3,6 +3,7 @@
  *
  *  Created on: 08.11.2018
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef TXTVACUUMGRIPPERROBOT_H_
@@ -20,6 +21,8 @@
 
 #include <map>
 #include <thread>
+#include <queue>
+#include <set>
 #endif
 
 
@@ -65,6 +68,13 @@ typedef enum
 	VGRCALIB_SL3,
 	VGRCALIB_END
 } TxtVgrCalibPos_t;
+
+typedef enum
+{
+	NORMAL = 0,
+	STORE_AFTER_PRODUCE = 1,
+	ENDLESS = 2
+} TxtVgrWorkingModes_t;
 
 inline const char * toString(TxtVgrCalibPos_t v)
 {
@@ -136,8 +146,13 @@ public:
 		FSM_DECLARE_STATE_XE( FAULT, color=red ),
 		FSM_DECLARE_STATE_XE( INIT, color=blue ),
 		FSM_DECLARE_STATE_XE( IDLE, color=green ),
-		FSM_DECLARE_STATE_XE( FETCH_WP_VGR, color=blue ),
+		FSM_DECLARE_STATE_XE( PICKUP2DELIVERY, color=orange ),
+		FSM_DECLARE_STATE_XE( STORE_FROM_DSO, color=orange ),
+		FSM_DECLARE_STATE_XE( HBW2PICKUP, color=orange),
+		FSM_DECLARE_STATE_XE( FETCH_WP_VGR_ORDER, color=blue ),
+		FSM_DECLARE_STATE_XE( FETCH_WP_VGR_PICKUP, color=blue ),
 		FSM_DECLARE_STATE_XE( VGR_WAIT_FETCHED, color=blue ),
+		FSM_DECLARE_STATE_XE( VGR_WAIT_FETCHED_PICKUP, color=blue ),
 		FSM_DECLARE_STATE_XE( MOVE_VGR2MPO, color=blue ),
 		FSM_DECLARE_STATE_XE( START_PRODUCE, color=blue ),
 		FSM_DECLARE_STATE_XE( MOVE_PICKUP_WAIT, color=blue ),
@@ -150,6 +165,7 @@ public:
 		FSM_DECLARE_STATE_XE( NFC_REJECTED, color=blue ),
 		FSM_DECLARE_STATE_XE( STORE_WP_VGR, color=blue ),
 		FSM_DECLARE_STATE_XE( STORE_WP, color=blue ),
+		FSM_DECLARE_STATE_XE( ORDER_WP, color=blue ),
 		FSM_DECLARE_STATE_XE( CALIB_HBW, color=orange ),
 		FSM_DECLARE_STATE_XE( CALIB_SLD, color=orange ),
 		FSM_DECLARE_STATE_XE( CALIB_DPS, color=orange ),
@@ -167,8 +183,13 @@ public:
 		   _CASE_ITEM( FAULT )
 		   _CASE_ITEM( INIT )
 		   _CASE_ITEM( IDLE )
-		   _CASE_ITEM( FETCH_WP_VGR )
+		   _CASE_ITEM( PICKUP2DELIVERY )
+		   _CASE_ITEM( STORE_FROM_DSO )
+		   _CASE_ITEM( FETCH_WP_VGR_ORDER )
+		   _CASE_ITEM( FETCH_WP_VGR_PICKUP )
+		   _CASE_ITEM( HBW2PICKUP )
 		   _CASE_ITEM( VGR_WAIT_FETCHED )
+		   _CASE_ITEM( VGR_WAIT_FETCHED_PICKUP )
 		   _CASE_ITEM( MOVE_VGR2MPO )
 		   _CASE_ITEM( START_PRODUCE )
 		   _CASE_ITEM( MOVE_PICKUP_WAIT )
@@ -181,6 +202,7 @@ public:
 		   _CASE_ITEM( NFC_REJECTED )
 		   _CASE_ITEM( STORE_WP_VGR )
 		   _CASE_ITEM( STORE_WP )
+		   _CASE_ITEM( ORDER_WP )
 		   _CASE_ITEM( CALIB_HBW )
 		   _CASE_ITEM( CALIB_SLD )
 		   _CASE_ITEM( CALIB_DPS )
@@ -216,57 +238,85 @@ public:
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestQuit",0);
 		reqQuit= true;
 	}
+
 	void requestOrder(TxtWPType_t type) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestOrder {}",(int)type);
-		reqWP_order = ft::TxtWorkpiece("", type, WP_STATE_RAW);
+		reqWP_orders.push(ft::TxtWorkpiece("", type, WP_STATE_RAW));
 		reqOrder= true;
 	}
+
+	void requestPickup(std::string tag_uid) {
+		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestWorkpiece id {}", tag_uid);
+		reqWP_pickups.push(ft::TxtWorkpiece(tag_uid, WP_TYPE_NONE, WP_STATE_PROCESSED));
+		reqPickup = true;
+	}
+
+	void storeWorkpieceFromDSOIntoHBW() {
+		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"storeWorkpieceFromDSOIntoHBW");
+		reqStore = true;
+	}
+
 	void requestNfcRead() {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestNfcRead",0);
 		reqNfcRead= true;
 	}
+
 	void requestNfcDelete() {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestNfcDelete",0);
 		reqNfcDelete= true;
 	}
+
 	/* local */
 	void requestExit(const std::string name) {
 		std::cout << "program terminated by " << name << std::endl;
 		spdlog::get("file_logger")->error("program terminated by {}",name);
 		exit(1);
 	}
+
 	void requestJoyBut(TxtJoysticksData jd) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestJoyBut",0);
 		joyData = jd;
 		reqJoyData = true;
 	}
+
 	void requestMPOstarted(TxtWorkpiece* wp) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestMPOstarted",0);
 		reqWP_MPO = wp;
 		reqMPOstarted = true;
 	}
+
 	void requestHBWcalib_nav() {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestHBWcalib_nav",0);
 		reqHBWcalib_nav = true;
 	}
+
 	void requestHBWcalib_end() {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestHBWcalib_end",0);
 		reqHBWcalib_end = true;
 	}
+
 	void requestSLDcalib_end() {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestSLDcalib_end",0);
 		reqSLDcalib_end = true;
 	}
+
 	void requestHBWstored(TxtWorkpiece* wp) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestHBWstored",0);
 		reqWP_HBW = wp;
 		reqHBWstored = true;
 	}
+
 	void requestHBWfetched(TxtWorkpiece* wp) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestHBWfetched",0);
 		reqWP_HBW = wp;
 		reqHBWfetched = true;
 	}
+
+	void requestHBWFault() {
+		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestHBWfetched",0);
+		reqHBWFault = true;
+	}
+
 	void requestSLDsorted(TxtWPType_t type) {
 		SPDLOG_LOGGER_TRACE(spdlog::get("console"),"requestSLDsorted {}",(int)type);
 		reqWP_SLD.type = type;
@@ -330,6 +380,7 @@ protected:
 	TxtWPType_t calibColor;
 	int calibColorValues[3];
 	EncPos3 lastPos3;
+	TxtVgrWorkingModes_t workingMode = TxtVgrWorkingModes_t::NORMAL;
 
 	void configInputs();
 	void initDashboard();
@@ -354,17 +405,29 @@ protected:
 	/* remote */
 	bool reqQuit;
 	bool reqOrder;
+	bool reqPickup = false;
+	bool reqStore = false;
 	TxtWorkpiece reqWP_order;
+	std::queue<TxtWorkpiece> reqWP_orders;
+	std::queue<TxtWorkpiece> reqWP_pickups;
+	TxtWorkpiece reqWP_pickup;
+	bool wp_waiting_for_pickup = false;
+	std::queue<bool> wps_waiting_for_pickup;
 	bool reqNfcRead;
 	bool reqNfcDelete;
 	TxtOrderState ord_state;
 	/* local */
+	bool storeProcessedWorkpiece = false;
+	bool storeWorkpiece = false;
+	bool allowWorkingModeChange = true;
+	bool changeWorkingMode = false;
 	TxtJoysticksData joyData;
 	bool reqJoyData;
 	bool reqMPOstarted;
 	TxtWorkpiece* reqWP_MPO;
 	bool reqHBWstored;
 	bool reqHBWfetched;
+	bool reqHBWFault = false;
 	bool reqHBWcalib_nav;
 	bool reqHBWcalib_end;
 	bool reqSLDcalib_end;

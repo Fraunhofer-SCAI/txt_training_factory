@@ -3,6 +3,7 @@
  *
  *  Created on: 15.03.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef TxtFactoryTypes_H_
@@ -129,7 +130,9 @@ typedef enum
 	WAITING_FOR_ORDER,
 	ORDERED,
 	IN_PROCESS,
-	SHIPPED
+	SHIPPED,
+	PICKUP,
+	STORE
 } TxtOrderState_t;
 
 inline const char * toString(TxtOrderState_t v)
@@ -139,11 +142,14 @@ inline const char * toString(TxtOrderState_t v)
 	case ORDERED: return "ORDERED";
 	case IN_PROCESS: return "IN_PROCESS";
 	case SHIPPED: return "SHIPPED";
+	case PICKUP: return "PICKUP";
+	case STORE: return "STORE";
 	default: return "[Unknown TxtOrderState_t]";
 	}
 }
 
 struct TxtOrderState {
+	std::string tag_uid;
 	TxtWPType_t type;
 	TxtOrderState_t state;
 };

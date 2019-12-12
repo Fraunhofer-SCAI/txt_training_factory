@@ -176,3 +176,4 @@ $(BIN_DIR)/TxtParkPosMPO: TxtSmartFactoryLib/Posix_Release/libTxtSmartFactoryLib
 clean:
 	rm -f -r TxtSmartFactoryLib/Posix_Release TxtSmartFactoryLib/Posix_Debug TxtFactoryClient/HBW_Release TxtFactoryClient/VGR_Release TxtFactoryClient/MPO_Release TxtFactoryClient/SLD_Release TxtFactoryClient/HBW_Debug TxtFactoryClient/VGR_Debug TxtFactoryClient/MPO_Debug TxtFactoryClient/SLD_Debug TxtFactoryMain/Posix_Release TxtFactoryMain/Posix_Debug TxtParkPos/SSC TxtParkPos/HBW TxtParkPos/VGR TxtParkPos/MPO $(BIN_DIR)/*
 
+

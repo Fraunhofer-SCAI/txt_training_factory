@@ -3,6 +3,7 @@
  *
  *  Created on: 22.01.2018
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef TxtMqttFactoryClient_H_
@@ -67,6 +68,7 @@ typedef enum
 	HBW_CALIB_NAV=3,
 	HBW_CALIB_END=4
 } TxtHbwAckCode_t;
+
 
 typedef enum
 {
@@ -154,10 +156,14 @@ public:
 #define TOPIC_INPUT_STATE_DSO    "f/i/state/dso"
 #define TOPIC_INPUT_STOCK        "f/i/stock"
 #define TOPIC_INPUT_STATE_ORDER  "f/i/order"
+#define TOPIC_INPUT_STATE_PICKUP "f/i/pickup"
+#define TOPIC_INPUT_STATE_STORE  "f/i/store"
 #define TOPIC_INPUT_NFC_DS       "f/i/nfc/ds"
 
 #define TOPIC_OUTPUT_STATE_ACK   "f/o/state/ack"
 #define TOPIC_OUTPUT_ORDER       "f/o/order"
+#define TOPIC_OUTPUT_PICKUP      "f/o/pickup"
+#define TOPIC_OUTPUT_STORE       "f/o/store"
 #define TOPIC_OUTPUT_NFC_DS      "f/o/nfc/ds"
 
 //factory local
@@ -166,6 +172,7 @@ public:
 #define TOPIC_LOCAL_MPO_ACK      "fl/mpo/ack"
 #define TOPIC_LOCAL_VGR_DO       "fl/vgr/do"
 #define TOPIC_LOCAL_HBW_ACK      "fl/hbw/ack"
+#define TOPIC_LOCAL_HBW_FAULT      "fl/hbw/fault"
 #define TOPIC_LOCAL_SLD_ACK      "fl/sld/ack"
 
 
@@ -203,6 +210,8 @@ public:
 	void publishStateHBW(TxtLEDSCode_t code, const std::string desc, long timeout, int active=-1, const std::string target="") { publishStateStation("hbw",code,desc,timeout,active,target); }
 	void publishStock(Stock_map_t map_wps, long timeout);
 	void publishStateOrder(TxtOrderState ord_state, long timeout);
+	void publishStatePickup(TxtOrderState ord_state, long timeout);
+	void publishStateStore(TxtOrderState ord_state, long timeout);
 	void publishNfcDS(TxtWorkpiece wp, History_map_t map_hist, long timeout);
 
 	//Factory local
@@ -210,7 +219,9 @@ public:
 	void publishSSC_Joy(TxtJoysticksData jd, long timeout);
 	void publishMPO_Ack(TxtMpoAckCode_t code, long timeout);
 	void publishVGR_Do(TxtVgrDoCode_t code, TxtWorkpiece* wp, long timeout);
+	void publishVGR_Order(TxtWPType_t t, long timeout);
 	void publishHBW_Ack(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout);
+	void publishHBW_Fault(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout);
 	void publishSLD_Ack(TxtSldAckCode_t code, TxtWPType_t type, int value, long timeout);
 
 protected:

@@ -3,6 +3,7 @@
  *
  *  Created on: 07.02.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef TxtHighBayWarehouse_H_
@@ -198,6 +199,7 @@ public:
 	bool store(TxtWorkpiece wp);
 	bool storeContainer();
 	bool fetch(TxtWPType_t t);
+	bool fetch(TxtWorkpiece* wp);
 	bool fetchContainer();
 
 	bool canColorBeStored(TxtWPType_t c);

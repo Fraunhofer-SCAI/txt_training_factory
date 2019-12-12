@@ -3,6 +3,7 @@
  *
  *  Created on: 08.11.2018
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #ifndef __DOCFSM__
@@ -42,17 +43,49 @@ void TxtVacuumGripperRobot::fsmStep()
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fsmStep",0);
 
+	// joystick released?
+	if (joyData.aY2 <= 10 && joyData.aY2 >= -10)
+	{
+		allowWorkingModeChange = true;
+	}
+
+	if (joyData.aY2 < -500 && allowWorkingModeChange)
+	{
+		allowWorkingModeChange = false;
+		changeWorkingMode = true;
+	}
+
+	if (changeWorkingMode)
+	{
+		if (workingMode == TxtVgrWorkingModes_t::NORMAL)
+		{
+			workingMode = TxtVgrWorkingModes_t::STORE_AFTER_PRODUCE;
+			std::cout << "WorkingMode switched to 'STORE_AFTER_PRODUCE'" << std::endl;
+		}
+		else if (workingMode == TxtVgrWorkingModes_t::STORE_AFTER_PRODUCE)
+		{
+			workingMode = TxtVgrWorkingModes_t::ENDLESS;
+			std::cout << "WorkingMode switched to 'ENDLESS'" << std::endl;
+		}
+		else if (workingMode == TxtVgrWorkingModes_t::ENDLESS)
+		{
+			workingMode = TxtVgrWorkingModes_t::NORMAL;
+			std::cout << "WorkingMode switched to 'NORMAL'" << std::endl;
+		}
+		else {
+			std::cout << "WorkingMode unknown. This is an internal error." << std::endl;
+			spdlog::get("file_logger")->error("WorkingMode unknown.", 0);
+			sound.error();
+			exit(1);
+		}
+		sound.warn();
+		changeWorkingMode = false;
+	}
+
 	// Entry activities ===================================================
 	if( newState != currentState )
 	{
-		//update order view (only if state changed)
-		if (reqOrder)
-		{
-			ord_state.type = reqWP_order.type;
-			ord_state.state = ORDERED;
-			assert(mqttclient);
-			mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH);
-		}
+		
 
 		switch( newState )
 		{
@@ -113,6 +146,7 @@ void TxtVacuumGripperRobot::fsmStep()
 			setStatus(SM_READY);
 			FSM_TRANSITION( IDLE, color=green, label='req\nquit' );
 			reqQuit = false;
+			reqHBWFault = false;
 		}
 #ifdef __DOCFSM__
 		FSM_TRANSITION( FAULT, color=red, label='wait' );
@@ -154,7 +188,15 @@ void TxtVacuumGripperRobot::fsmStep()
 			}
 		}
 
-		if (reqSLDsorted)
+		if(wp_waiting_for_pickup || !wps_waiting_for_pickup.empty())
+		{
+			std::cout << "acknowledge wp_waiting_for_pickup" << std::endl;
+			FSM_TRANSITION( PICKUP2DELIVERY, color=blue, label='next' );
+			wp_waiting_for_pickup = false;
+			wps_waiting_for_pickup.pop();
+		}
+		// activities
+		else if (reqSLDsorted) //create queue for it
 		{
 			setTarget("dso");
 			reqWP_SLD.printDebug();
@@ -179,48 +221,77 @@ void TxtVacuumGripperRobot::fsmStep()
 			}
 			reqSLDsorted = false;
 		}
-		else if (reqOrder)
-		{
+		else if (reqOrder || !reqWP_orders.empty())
+		{	
+			reqWP_order = reqWP_orders.front();
+			reqWP_orders.pop();
+			ord_state = TxtOrderState();
 			ord_state.type = reqWP_order.type;
 			ord_state.state = ORDERED;
 			assert(mqttclient);
 			mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH);
 
-			FSM_TRANSITION( FETCH_WP_VGR, color=blue, label='req order' );
+			FSM_TRANSITION( FETCH_WP_VGR_ORDER, color=blue, label='req order' );
 			reqOrder = false;
+		}
+		else if ((reqPickup || !reqWP_pickups.empty()) && dps.is_DOUT())
+		{
+			reqWP_pickup = reqWP_pickups.front();
+			reqWP_pickups.pop();
+			ord_state = TxtOrderState();
+			ord_state.tag_uid = reqWP_pickup.tag_uid;
+			ord_state.type = reqWP_order.type;
+			ord_state.state = PICKUP;
+			assert(mqttclient);
+			mqttclient->publishStatePickup(ord_state, TIMEOUT_MS_PUBLISH);
+
+			FSM_TRANSITION( FETCH_WP_VGR_PICKUP, color=blue, label='req order' );
+			reqPickup = false;
+		}
+		else if (reqStore && !dps.is_DOUT())
+		{
+			ord_state = TxtOrderState();
+			ord_state.state = STORE;
+			assert(mqttclient);
+			mqttclient->publishStateStore(ord_state, TIMEOUT_MS_PUBLISH);
+
+			FSM_TRANSITION( STORE_FROM_DSO, color=blue, label='req order' );
+			reqStore = false;
 		}
 		else if (!dps.is_DIN())
 		{
+			storeProcessedWorkpiece = false;
 			FSM_TRANSITION( START_DELIVERY, color=blue, label='dsi' );
 		}
-		/*else if (joyData.aY2 < -500)
-		{
-			//TODO local demo mode
-		}*/
 		else if (joyData.aX2 > 500)
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
-				reqWP_order.type = WP_TYPE_WHITE;
-				reqOrder = true;
+				requestOrder(WP_TYPE_WHITE);
 			}
 		}
 		else if (joyData.aY2 > 500)
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
-				reqWP_order.type = WP_TYPE_RED;
-				reqOrder = true;
+				requestOrder(WP_TYPE_RED);
 			}
 		}
 		else if (joyData.aX2 < -500)
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
-				reqWP_order.type = WP_TYPE_BLUE;
-				reqOrder = true;
+				requestOrder(WP_TYPE_BLUE);
 			}
 		}
+		// else if (workingMode == TxtVgrWorkingModes_t::ENDLESS)
+		// {
+		// 	//TODO: Choose random available Workpiece type (don't know how yet, i dont have storage information here... )
+		// 	if(reqWP_HBW != 0)
+		// 	{
+		// 		FSM_TRANSITION( ORDER_WP, color=orange, label='order_wp in endless-mode' );
+		// 	}
+		// }
 		else
 		{
 			std::string uid = dps.nfcReadUID();
@@ -261,9 +332,9 @@ void TxtVacuumGripperRobot::fsmStep()
 		break;
 	}
 	//-----------------------------------------------------------------
-	case FETCH_WP_VGR:
+	case FETCH_WP_VGR_ORDER:
 	{
-		printState(FETCH_WP_VGR);
+		printState(FETCH_WP_VGR_ORDER);
 
 		assert(mqttclient);
 		reqWP_order.printDebug();
@@ -275,11 +346,28 @@ void TxtVacuumGripperRobot::fsmStep()
 		FSM_TRANSITION( VGR_WAIT_FETCHED, color=green, label='fetched' );
 		break;
 	}
+	case FETCH_WP_VGR_PICKUP:
+		{
+			printState(FETCH_WP_VGR_PICKUP);
+
+			assert(mqttclient);
+			reqWP_pickup.printDebug();
+			mqttclient->publishVGR_Do(VGR_HBW_FETCH_WP, &reqWP_pickup, TIMEOUT_MS_PUBLISH);
+
+			setTarget("hbw");
+			moveFromHBW1();
+
+			FSM_TRANSITION( VGR_WAIT_FETCHED_PICKUP, color=green, label='fetched' );
+			break;
+		}
 	//-----------------------------------------------------------------
 	case VGR_WAIT_FETCHED:
 	{
 		printState(VGR_WAIT_FETCHED);
-
+		if (reqHBWFault)
+		{
+			FSM_TRANSITION( FAULT, color=red, label='error' );
+		}
 		if (reqHBWfetched)
 		{
 			moveFromHBW2();
@@ -300,6 +388,30 @@ void TxtVacuumGripperRobot::fsmStep()
 #endif
 		break;
 	}
+	case VGR_WAIT_FETCHED_PICKUP:
+		{
+			printState(VGR_WAIT_FETCHED_PICKUP);
+			if (reqHBWFault)
+			{
+				FSM_TRANSITION( FAULT, color=red, label='error' );
+			}
+			if (reqHBWfetched)
+			{
+				moveFromHBW2();
+
+				reqWP_MPO = reqWP_HBW;
+
+				assert(mqttclient);
+				mqttclient->publishVGR_Do(VGR_HBW_STORECONTAINER, reqWP_MPO, TIMEOUT_MS_PUBLISH);
+
+				reqHBWfetched = false;
+				FSM_TRANSITION( HBW2PICKUP, color=green, label='transport to pickup_station' );
+			}
+	#ifdef __DOCFSM__
+			FSM_TRANSITION( VGR_WAIT_FETCHED_PICKUP, color=blue, label='wait' );
+	#endif
+			break;
+		}
 	//-----------------------------------------------------------------
 	case MOVE_VGR2MPO:
 	{
@@ -366,8 +478,16 @@ void TxtVacuumGripperRobot::fsmStep()
 				reqWP_HBW->printDebug();
 				delete reqWP_HBW;
 			}
-			reqWP_HBW = new TxtWorkpiece(uid,WP_TYPE_NONE,WP_STATE_RAW);
+			if (storeProcessedWorkpiece)
+			{
+				reqWP_HBW = new TxtWorkpiece(uid,WP_TYPE_NONE,WP_STATE_PROCESSED);
+			}
+			else
+			{
+				reqWP_HBW = new TxtWorkpiece(uid,WP_TYPE_NONE,WP_STATE_RAW);
+			}
 			reqWP_HBW->printDebug();
+			
 			FSM_TRANSITION( COLOR_DETECTION, color=blue, label='nfc tag ok' );
 		}
 #ifdef __DOCFSM__
@@ -414,13 +534,17 @@ void TxtVacuumGripperRobot::fsmStep()
 		}
 		std::vector<int64_t> vts = proStorage.getTagUidVts(uid);
 		uint8_t mask_ts = proStorage.getTagUidMaskTs(uid);
-		std::string tag_uid = dps.nfcDeviceDeleteWriteRawRead(reqWP_HBW->type, vts, mask_ts);
-		if (tag_uid.empty())
-		{
-			FSM_TRANSITION( FAULT, color=red, label='nfc error' );
-			break;
+		if(!storeProcessedWorkpiece)
+		{	
+			std::cout << "reqWP_HBW->type: " << reqWP_HBW->type << std::endl;
+			std::string tag_uid = dps.nfcDeviceDeleteWriteRawRead(reqWP_HBW->type, vts, mask_ts);
+			if (tag_uid.empty())
+			{
+				FSM_TRANSITION( FAULT, color=red, label='nfc error' );
+				break;
+			}
 		}
-
+		storeWorkpiece = false;
 		FSM_TRANSITION( STORE_WP_VGR, color=blue, label='nfc write ok' );
 		break;
 	}
@@ -520,7 +644,22 @@ void TxtVacuumGripperRobot::fsmStep()
 		assert(mqttclient);
 		mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH);
 		mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH); //2x workaround if message is lost
-		FSM_TRANSITION( IDLE, color=blue, label='next' );
+
+		if (workingMode == TxtVgrWorkingModes_t::NORMAL)
+		{
+			FSM_TRANSITION( IDLE, color=blue, label='next' );
+		}
+		else if (workingMode == TxtVgrWorkingModes_t::STORE_AFTER_PRODUCE || workingMode == TxtVgrWorkingModes_t::ENDLESS)
+		{
+			FSM_TRANSITION( PICKUP2DELIVERY, color=blue, label='next' );
+		}
+		else
+		{
+			std::cout << "WorkingMode unknown. This is an internal error." << std::endl;
+			spdlog::get("file_logger")->error("WorkingMode unknown.", 0);
+			exit(1);
+		}
+
 		break;
 	}
 	//-----------------------------------------------------------------
@@ -530,19 +669,20 @@ void TxtVacuumGripperRobot::fsmStep()
 
 		assert(mqttclient);
 		mqttclient->publishVGR_Do(VGR_HBW_FETCHCONTAINER, reqWP_HBW, TIMEOUT_MS_PUBLISH);
-
-		dps.setActiveDSI(false);
-		if (dps.getLastColor() == WP_TYPE_NONE)
+		if (!storeWorkpiece)
 		{
-			moveWrongRelease();
-			FSM_TRANSITION( FAULT, color=red, label='wrong color' );
-			break;
+			dps.setActiveDSI(false);
+			if (dps.getLastColor() == WP_TYPE_NONE)
+			{
+				moveWrongRelease();
+				FSM_TRANSITION( FAULT, color=red, label='wrong color' );
+				break;
+			}
+		
+			assert(reqWP_HBW);
+			reqWP_HBW->printDebug();
+			reqWP_HBW->type = dps.getLastColor();
 		}
-
-		assert(reqWP_HBW);
-		reqWP_HBW->printDebug();
-		reqWP_HBW->type = dps.getLastColor();
-
 		moveToHBW();
 		FSM_TRANSITION( STORE_WP, color=blue, label='transport to HBW' );
 		break;
@@ -551,8 +691,11 @@ void TxtVacuumGripperRobot::fsmStep()
 	case STORE_WP:
 	{
 		printState(STORE_WP);
-
-		if (reqHBWfetched)
+		if (reqHBWFault)
+		{
+			FSM_TRANSITION( FAULT, color=red, label='error' );
+		}
+		else if (reqHBWfetched)
 		{
 			release();
 			assert(reqWP_HBW);
@@ -564,11 +707,25 @@ void TxtVacuumGripperRobot::fsmStep()
 
 			moveRef();
 			FSM_TRANSITION( IDLE, color=green, label='fetched' );
+			if (workingMode == TxtVgrWorkingModes_t::ENDLESS && reqWP_HBW->state == WP_STATE_RAW)
+			{
+				FSM_TRANSITION( ORDER_WP, color=green, label='endless_mode: order wp' );
+			}
+			
 			reqHBWfetched = false;
 		}
 #ifdef __DOCFSM__
 		FSM_TRANSITION( STORE_WP, color=blue, label='wait' );
 #endif
+		break;
+	}
+
+	case ORDER_WP:
+	{
+		printState(ORDER_WP);
+		assert(mqttclient);
+		mqttclient->publishVGR_Order(reqWP_HBW->type, TIMEOUT_MS_PUBLISH);
+		FSM_TRANSITION( IDLE, color=green, label='ordered' );
 		break;
 	}
 	//-----------------------------------------------------------------
@@ -859,6 +1016,86 @@ void TxtVacuumGripperRobot::fsmStep()
 		FSM_TRANSITION( CALIB_VGR_NAV, color=orange, label='ok' );
 		break;
 	}
+	case PICKUP2DELIVERY:
+	{
+		printState(PICKUP2DELIVERY);
+		moveRef();
+		if(!dps.is_DIN())
+		{
+			std::cout << "wp_waiting_for_pickup = true" << std::endl;
+			wp_waiting_for_pickup = true;
+			wps_waiting_for_pickup.push(true);
+			FSM_TRANSITION( START_DELIVERY, color=orange, label='test' );
+		}
+		else
+		{
+			move("DOUT0");
+			move("DOUT");
+			move(255,460, 585); //move("DOUT1");
+			grip();
+			move("DOUT");
+			move("DOUT0");
+			move("DIN0");
+			move("DIN");
+			release();
+			if (!dps.is_DIN()) {
+				storeProcessedWorkpiece = (workingMode == TxtVgrWorkingModes_t::STORE_AFTER_PRODUCE);
+				FSM_TRANSITION( START_DELIVERY, color=orange, label='test' );
+			}
+			else {
+				FSM_TRANSITION( IDLE, color=orange, label='test' );
+			}
+		}
+		break;
+	}
+
+	case HBW2PICKUP:
+	{
+		printState(HBW2PICKUP);
+		if (dps.is_DOUT())
+		{
+			dps.setErrorDSO(false);
+			moveDeliveryOutAndRelease();
+			FSM_TRANSITION( IDLE, color=orange, label='test' );
+		}
+		else
+		{
+			dps.setErrorDSO(true);
+		}
+		break;
+	}
+
+	case STORE_FROM_DSO:
+		printState(STORE_FROM_DSO);
+		if (!dps.is_DOUT())
+		{
+			dps.setErrorDSO(false);
+			moveRef();
+			move("DOUT0");
+			move("DOUT");
+			move(255,460, 585); //move("DOUT1");
+			grip();
+			moveRef();
+			moveNFC();
+			dps.nfcRead();
+			reqWP_HBW = &(dps.getNfcData()->wp);
+			if (reqWP_HBW) 
+			{
+				storeWorkpiece = true;
+				FSM_TRANSITION( STORE_WP_VGR, color=orange, label='test' );
+			}
+			else
+			{
+				sound.error();
+				FSM_TRANSITION( IDLE, color=orange, label='test' );
+			}
+			
+		}
+		else 
+		{
+			FSM_TRANSITION( IDLE, color=orange, label='test' );
+		}
+		break;
 	//-----------------------------------------------------------------
 	default: assert( 0 ); break;
 	}

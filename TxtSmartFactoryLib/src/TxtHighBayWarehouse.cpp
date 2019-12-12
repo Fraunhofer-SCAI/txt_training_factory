@@ -3,6 +3,7 @@
  *
  *  Created on: 07.02.2019
  *      Author: steiger-a
+ *		Edited: Mark-Oliver Masur
  */
 
 #include "TxtHighBayWarehouse.h"
@@ -241,6 +242,26 @@ bool TxtHighBayWarehouse::fetch(TxtWPType_t t)
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fetch {}", t);
 	setActStatus(true, SM_BUSY);
 	if (storage.fetch(t))
+	{
+		StoragePos2 p = storage.getNextFetchPos();
+		if (p.x<0 || p.y<0) return false;
+		bool r = getCR(p.x, p.y);
+		if (!r) return false;
+		r = putConv(true);
+		if (!r) return false;
+		setActStatus(false, SM_READY);
+		storage.saveStorageState();
+		return true;
+	}
+	setActStatus(false, SM_ERROR);
+	return false;
+}
+
+bool TxtHighBayWarehouse::fetch(TxtWorkpiece* wp)
+{
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fetch wp with tag_uid{}", wp->tag_uid);
+	setActStatus(true, SM_BUSY);
+	if (storage.fetch(wp))
 	{
 		StoragePos2 p = storage.getNextFetchPos();
 		if (p.x<0 || p.y<0) return false;
