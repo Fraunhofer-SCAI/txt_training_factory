@@ -805,6 +805,8 @@ int main(int argc, char* argv[])
     bool sound_enable = root.get("sound", true ).asBool();
     std::string host = root.get("host", "192.168.0.10" ).asString();
     int port = root.get("port", 1883 ).asInt();
+	std::string mqtt_prefix = root.get("mqtt_prefix", "").asString();
+	std::string mqtt_client_id = root.get("mqtt_client_id", clientName).asString();
     std::string mqtt_user = root.get("mqtt_user", "txt" ).asString();
     mqtt::binary_ref mqtt_pass = root.get("mqtt_pass", "xtx" ).asString();
     std::cout << "sound:" << sound_enable
@@ -825,7 +827,7 @@ int main(int argc, char* argv[])
 				std::cout << "Init MQTTClient" << std::endl;
 				std::stringstream sout_port;
 				sout_port << port;
-				ft::TxtMqttFactoryClient mqttclient(clientName, host, sout_port.str(), mqtt_user, mqtt_pass);
+				ft::TxtMqttFactoryClient mqttclient(mqtt_prefix+mqtt_client_id, host, sout_port.str(), mqtt_user, mqtt_pass);
 				pcli = &mqttclient;
 
 				ft::TxtTransfer T(pTArea);
