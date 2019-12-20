@@ -64,14 +64,14 @@ std::string getMQTTReasonCodeString(int rc) {
 	return s;
 }
 
-TxtMqttFactoryClient::TxtMqttFactoryClient(std::string clientname, std::string host, std::string port,
+TxtMqttFactoryClient::TxtMqttFactoryClient(std::string clientname, std::string clientNamePrefix, std::string host, std::string port,
 		std::string mqtt_user, mqtt::binary_ref mqtt_pass, bool bretained, int iqos)
 	: clientname(clientname), host(host), port(port), mqtt_user(mqtt_user), mqtt_pass(mqtt_pass),
 	  bretained(bretained), iqos(iqos),
-	cli("tcp://" + host + ":" + port, clientname+"V"+std::string(TxtAppVer)), aListSub(), aListPub()
+	cli("tcp://" + host + ":" + port, clientNamePrefix+clientname+"V"+std::string(TxtAppVer)), aListSub(), aListPub()
 	//client name exist only once!
 {
-	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "TxtMqttFactoryClient clientname:{} host:{} port:{} mqtt_user:{}", clientname, host, port, mqtt_user);
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "TxtMqttFactoryClient clientname:{} host:{} port:{} mqtt_user:{}", clientNamePrefix+clientname, host, port, mqtt_user);
 	connOpts.set_connect_timeout(90);
 	connOpts.set_keep_alive_interval(60);
 	connOpts.set_clean_session(true);
