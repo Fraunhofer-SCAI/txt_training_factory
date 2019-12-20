@@ -178,7 +178,7 @@ public:
 
 class TxtMqttFactoryClient {
 public:
-	TxtMqttFactoryClient(std::string clientName, std::string clientNamePrefix, std::string host, std::string port,
+	TxtMqttFactoryClient(std::string clientname, std::string clientNamePrefix, std::string host, std::string port,
 			std::string mqtt_user, mqtt::binary_ref mqtt_pass, bool bretained=false, int iqos=1);
 	virtual ~TxtMqttFactoryClient();
 
