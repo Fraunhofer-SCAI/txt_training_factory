@@ -827,7 +827,7 @@ int main(int argc, char* argv[])
 				std::cout << "Init MQTTClient" << std::endl;
 				std::stringstream sout_port;
 				sout_port << port;
-				ft::TxtMqttFactoryClient mqttclient(mqtt_prefix+mqtt_client_id, host, sout_port.str(), mqtt_user, mqtt_pass);
+				ft::TxtMqttFactoryClient mqttclient(mqtt_client_id, mqtt_prefix, host, sout_port.str(), mqtt_user, mqtt_pass);
 				pcli = &mqttclient;
 
 				ft::TxtTransfer T(pTArea);
