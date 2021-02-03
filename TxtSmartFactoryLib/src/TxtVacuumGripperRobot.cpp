@@ -3,7 +3,6 @@
  *
  *  Created on: 08.11.2018
  *      Author: steiger-a
- *		Edited: Mark-Oliver Masur
  */
 
 #include "TxtVacuumGripperRobot.h"
