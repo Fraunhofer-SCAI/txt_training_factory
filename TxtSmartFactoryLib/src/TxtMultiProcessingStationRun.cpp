@@ -197,9 +197,9 @@ void TxtMultiProcessingStation::fsmStep()
 
 		//release
 		setValveLowering(true);
-		std::this_thread::sleep_for(std::chrono::milliseconds(400));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		setValveVacuum(false);
-		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		setValveLowering(false);
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
