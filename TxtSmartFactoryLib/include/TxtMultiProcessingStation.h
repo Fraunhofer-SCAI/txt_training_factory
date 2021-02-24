@@ -144,8 +144,11 @@ public:
 protected:
 	State_t currentState;
 	State_t newState;
+	int newInputs[8] = {0};
+	int oldInputs[8] = {0};
 
     void configInputs();
+	void reportInputs(int* inputs);
 
     /*!
      * @dotfile TxtMultiProcessingStationRun.gv

@@ -9,6 +9,7 @@
 #ifndef __DOCFSM__
 #include "TxtVacuumGripperRobot.h"
 
+#include "TxtMqttFactoryClient.h"
 #include "Utils.h"
 #endif
 
@@ -20,20 +21,21 @@
 		newState = startState;
 
 #ifdef FSM_TRANSITION
- #undef FSM_TRANSITION
+#undef FSM_TRANSITION
 #endif
-#ifdef _DEBUG
- #define FSM_TRANSITION( _newState, attr... )                              \
-		do                                                                 \
+#define FSM_TRANSITION( _newState, attr... )                               \
+        do																   \
 		{                                                                  \
-			std::cerr << state2str( currentState ) << " -> "               \
-			<< state2str( _newState ) << std::endl;                        \
 			newState = _newState;                                          \
+			mqttclient->                                                   \
+			publishState(                                                  \
+			ft::TxtVacuumGripperRobot::toString(currentState),             \
+			ft::TxtVacuumGripperRobot::toString(_newState),                \
+			TOPIC_STATE_VGR,                                               \
+			TIMEOUT_MS_PUBLISH);                                           \
 		}                                                                  \
 		while( false )
-#else
- #define FSM_TRANSITION( _newState, attr... )  newState = _newState
-#endif
+
 
 
 namespace ft {
@@ -42,6 +44,10 @@ namespace ft {
 void TxtVacuumGripperRobot::fsmStep()
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fsmStep",0);
+	reportInputs(newInputs);
+	if (copyAndCheckChanged(newInputs, oldInputs)) {
+		mqttclient->publishInput(newInputs, TOPIC_INPUT_VGR, TIMEOUT_MS_PUBLISH);
+	}
 
 	// joystick released?
 	if (joyData.aY2 <= 10 && joyData.aY2 >= -10)
@@ -644,13 +650,14 @@ void TxtVacuumGripperRobot::fsmStep()
 	//-----------------------------------------------------------------
 	case MOVE_PICKUP:
 	{
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "case MOVE_PICKUP");
 		printState(MOVE_PICKUP);
 		dps.setActiveDSO(false);
 		ord_state.type = reqWP_order.type;
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "Set ord_state.state = WAITING_FOR_ORDER");
 		ord_state.state = WAITING_FOR_ORDER;
 		assert(mqttclient);
 		mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH);
-		mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH); //2x workaround if message is lost
 
 		if (workingMode == TxtVgrWorkingModes_t::NORMAL)
 		{

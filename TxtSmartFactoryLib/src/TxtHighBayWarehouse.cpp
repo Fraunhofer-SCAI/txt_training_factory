@@ -319,5 +319,12 @@ void TxtHighBayWarehouse::setSpeed(int16_t s)
 	axisZ.setSpeed(s);
 }
 
+void TxtHighBayWarehouse::reportInputs(int* inputs)
+{
+	for(int i = 0 ; i < 8; ++i){
+		inputs[i] = pT->pTArea->ftX1in.uni[i];
+	}
+}
+
 
 } /* namespace ft */

@@ -108,15 +108,6 @@ void TxtMotionDetection::run() {
 				for(unsigned int i = 0; i< cnts.size(); i++) {
 					std::vector<cv::Point> cnt = cnts[i];
 					double cArea = contourArea(cnts[i]);
-#ifdef DEBUG
-					cv::Rect rectcnt = cv::boundingRect(cnt);
-					// tl() directly equals to the desired min. values
-					//cv::Point minVal = rectcnt.tl();
-					// br() is exclusive so we need to subtract 1 to get the max. values
-					//cv::Point maxVal = rectcnt.br() - cv::Point(1, 1);
-					//SPDLOG_LOGGER_DEBUG(spdlog::get("console"), ".......... cnt size:{} min:{} {} max:{} {}", cnt.size(), minVal.x, minVal.y, maxVal.x, maxVal.y);
-					SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "---------- cnt.size:{} cArea:{}({})", cnt.size(), cArea, max_limit_Area);
-#endif
 					if(cArea < max_limit_Area) { //default 500
 						continue;
 					}

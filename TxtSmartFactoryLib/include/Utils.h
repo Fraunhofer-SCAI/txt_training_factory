@@ -34,6 +34,7 @@ std::chrono::system_clock::time_point trygettimepoint(const std::string& str);
 std::string ftos(float f, int nd);
 #endif
 
+bool copyAndCheckChanged(int* newInput, int* oldInput);
 
 } /* namespace ft */
 

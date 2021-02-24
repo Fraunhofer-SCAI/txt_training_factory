@@ -165,6 +165,17 @@ std::string ftos(float f, int nd) {
     return ostr.str();
 }
 #endif
-
+bool copyAndCheckChanged(int* newInput, int* oldInput)
+{
+	bool changed = false;
+	for(int i = 0 ; i < 8; ++i){
+		if(oldInput[i] != newInput[i]) 
+		{
+			changed = true;
+			oldInput[i] = newInput[i];
+		}
+	}
+	return changed;
+}
 
 } /* namespace ft */

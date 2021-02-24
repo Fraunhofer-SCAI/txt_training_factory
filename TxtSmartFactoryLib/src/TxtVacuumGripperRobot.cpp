@@ -400,5 +400,13 @@ void TxtVacuumGripperRobot::configInputs()
 	pT->pTArea->ftX1state.config_id ++; // Save the new Setup
 }
 
+void TxtVacuumGripperRobot::reportInputs(int* inputs)
+{
+	for(int i = 0 ; i < 8; ++i){
+		inputs[i] = pT->pTArea->ftX1in.uni[i];
+	}
+}
+
+
 
 } /* namespace ft */

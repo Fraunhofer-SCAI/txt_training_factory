@@ -106,16 +106,16 @@ public:
 
 	inline void printState(State_t state)
 	{
-		std::cout << toString(state) << std::endl;
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "printState: {}", toString(state));
 	}
 	inline void printEntryState(State_t state)
 	{
-		std::cout << "entry " << toString(state) << std::endl;
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "printEntryState: {}", toString(state));
 	}
 
 	inline void printExitState(State_t state)
 	{
-		std::cout << "exit " << toString(state) << std::endl;
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "printExitState: {} ", toString(state));
 	}
 
 	TxtSortingLine(TxtTransfer* pT, ft::TxtMqttFactoryClient* mqttclient = 0);
@@ -168,7 +168,10 @@ public:
 protected:
 	State_t currentState;
 	State_t newState;
+	int newInputs[8] = {0};
+	int oldInputs[8] = {0};	
 
+	void reportInputs(int* inputs);
     void configInputs();
 
     /*!

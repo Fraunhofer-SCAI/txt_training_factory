@@ -216,6 +216,9 @@ public:
 protected:
 	State_t currentState;
 	State_t newState;
+	int newInputs[8] = {0};
+	int oldInputs[8] = {0};	
+
 	TxtHbwCalibPos_t calibPos;
 	EncPos2 lastPos2;
 
@@ -226,6 +229,8 @@ protected:
 	bool putCR(int i, int j);
 	bool getConv(bool stop = false);
 	bool putConv(bool stop = false);
+
+	void reportInputs(int* inputs);
 
 	void moveCalibPos();
 

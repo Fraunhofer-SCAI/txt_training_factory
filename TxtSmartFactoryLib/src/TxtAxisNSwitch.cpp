@@ -106,7 +106,7 @@ void TxtAxisNSwitch::moveS2X(int idx)
 		setStatus(AXIS_READY);
 	} else {
 		std::string sst = toString(status);
-		SPDLOG_LOGGER_DEBUG(spdlog::get("console_axes"), "{} setStatus:{}",name,sst);
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console_axes"), "{}: setStatus:{}, idx:{}", name, sst, std::to_string(idx));
 		std::cout << "exit moveS2X 3" << std::endl;
 		spdlog::get("file_logger")->error("exit moveS2X 3",0);
 		exit(1);

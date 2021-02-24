@@ -1197,5 +1197,78 @@ void TxtMqttFactoryClient::publishSLD_Ack(TxtSldAckCode_t code, TxtWPType_t type
 	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishSLD_Ack",0);
 }
 
+void TxtMqttFactoryClient::publishState(std::string currentState, std::string newState, std::string topic, long timeout)
+{
+	pthread_mutex_lock(&m_mutex);
+
+	Json::Value js_ack;
+	std::ostringstream sout_ack;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_ack["ts"] = sts;
+		js_ack["currentState"] = currentState;
+		js_ack["newState"] = newState;
+		sout_ack << js_ack;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", topic);
+			auto msg_ack = mqtt::make_message(topic, sout_ack.str());
+			msg_ack->set_qos(iqos);
+			msg_ack->set_retained(bretained);
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "publish: {} {} {}", sts, currentState, newState);
+			mqtt::token_ptr conntok = cli.publish(msg_ack, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishState: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishState",0);
+}
+
+void TxtMqttFactoryClient::publishInput(int* inputs, std::string topic, long timeout)
+{
+	pthread_mutex_lock(&m_mutex);
+
+	Json::Value js_ack;
+	std::ostringstream sout_ack;
+	char sts[25];
+	ft::getnowstr(sts);
+	try {
+		js_ack["ts"] = sts;
+		for(int i = 0 ; i < 8; ++i){
+			js_ack["input" + std::to_string(i)] = inputs[i];
+		}
+		sout_ack << js_ack;
+		try {
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "topic: {}", topic);
+			auto msg_ack = mqtt::make_message(topic, sout_ack.str());
+			msg_ack->set_qos(iqos);
+			msg_ack->set_retained(bretained);
+			mqtt::token_ptr conntok = cli.publish(msg_ack, nullptr, aListPub);
+			bool r = conntok->wait_for(timeout);
+#ifdef FORCE_EXIT_ON_TIMEOUT
+			if (!r) exit(1);
+#endif
+		} catch (const mqtt::exception& exc) {
+			std::cout << "publishInput: " << exc.what() << " "
+					<< getMQTTReasonCodeString(exc.get_reason_code()) << std::endl;
+		}
+	} catch (const Json::RuntimeError& exc) {
+		std::cout << "Error: " << exc.what() << std::endl;
+	}
+
+	pthread_mutex_unlock(&m_mutex);
+	SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pthread_mutex_unlock publishInput",0);
+
+}
+
 
 } /* namespace ft */

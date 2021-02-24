@@ -23,20 +23,20 @@
 		newState = startState;
 
 #ifdef FSM_TRANSITION
- #undef FSM_TRANSITION
+#undef FSM_TRANSITION
 #endif
-#ifdef _DEBUG
- #define FSM_TRANSITION( _newState, attr... )                              \
-		do                                                                 \
+#define FSM_TRANSITION( _newState, attr... )                               \
+        do																   \
 		{                                                                  \
-			std::cerr << state2str( currentState ) << " -> "               \
-			<< state2str( _newState ) << std::endl;                        \
 			newState = _newState;                                          \
+			mqttclient->                                                   \
+			publishState(                                                  \
+			ft::TxtSortingLine::toString(currentState),                    \
+			ft::TxtSortingLine::toString(_newState),                       \
+			TOPIC_STATE_SLD,                                               \
+			TIMEOUT_MS_PUBLISH);                                           \
 		}                                                                  \
 		while( false )
-#else
- #define FSM_TRANSITION( _newState, attr... )  newState = _newState
-#endif
 
 
 namespace ft {
@@ -46,6 +46,10 @@ void TxtSortingLine::fsmStep()
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fsmStep",0);
 
+	reportInputs(newInputs);
+	if (copyAndCheckChanged(newInputs, oldInputs)) {
+		mqttclient->publishInput(newInputs, TOPIC_INPUT_SLD, TIMEOUT_MS_PUBLISH);
+	}
 	// Entry activities ===============================================
 	if( newState != currentState )
 	{
@@ -171,7 +175,7 @@ void TxtSortingLine::fsmStep()
 		if (isEjectionTriggered())
 		{
 			//min color is final color
-			std::cout << "color final value: " << detectedColorValue << std::endl;
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "color final value: {}", detectedColorValue);
 			FSM_TRANSITION( START_COUNT, color=blue, label='start\ncounter' );
 		}
 #ifdef __DOCFSM__
@@ -185,6 +189,7 @@ void TxtSortingLine::fsmStep()
 		printState(START_COUNT);
 		setCompressor(true);
 		// Reset counter
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "Reset u16Counter",0);
 		u16Counter = 0;
 		FSM_TRANSITION( CHECK_COUNT, color=blue, label='check\ncounter' );
 		break;
@@ -348,7 +353,7 @@ void TxtSortingLine::fsmStep()
 		{
 			sound.info1();
 			//min color is final color
-			std::cout << "color final value: " << detectedColorValue << std::endl;
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "color final value: {}", detectedColorValue);
 
 			switch(calibColor)
 			{

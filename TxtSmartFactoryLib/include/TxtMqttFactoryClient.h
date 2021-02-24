@@ -172,9 +172,19 @@ public:
 #define TOPIC_LOCAL_MPO_ACK      "fl/mpo/ack"
 #define TOPIC_LOCAL_VGR_DO       "fl/vgr/do"
 #define TOPIC_LOCAL_HBW_ACK      "fl/hbw/ack"
-#define TOPIC_LOCAL_HBW_FAULT      "fl/hbw/fault"
+#define TOPIC_LOCAL_HBW_FAULT    "fl/hbw/fault"
 #define TOPIC_LOCAL_SLD_ACK      "fl/sld/ack"
 
+//custom
+#define TOPIC_STATE_HBW          "fh/state/hbw"
+#define TOPIC_STATE_MPO			 "fh/state/mpo"
+#define TOPIC_STATE_SLD			 "fh/state/sld"
+#define TOPIC_STATE_VGR			 "fh/state/vgr"
+
+#define TOPIC_INPUT_HBW          "fh/input/hbw"
+#define TOPIC_INPUT_MPO			 "fh/input/mpo"
+#define TOPIC_INPUT_SLD			 "fh/input/sld"
+#define TOPIC_INPUT_VGR			 "fh/input/vgr"
 
 class TxtMqttFactoryClient {
 public:
@@ -223,6 +233,10 @@ public:
 	void publishHBW_Ack(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout);
 	void publishHBW_Fault(TxtHbwAckCode_t code, TxtWorkpiece* wp, long timeout);
 	void publishSLD_Ack(TxtSldAckCode_t code, TxtWPType_t type, int value, long timeout);
+
+	// custom
+	void publishState(std::string currentState, std::string newState, std::string topic, long timeout);
+	void publishInput(int* inputs, std::string topic, long timeout);
 
 protected:
 	//Factory remote

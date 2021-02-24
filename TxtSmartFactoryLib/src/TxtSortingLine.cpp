@@ -29,15 +29,16 @@ uint16_t u16Counter;
 // This is called between receiving inputs and sending outputs to the TXT hardware
 bool SLDTransferAreaCallbackFunction(FISH_X1_TRANSFER *pTArea, int i32NrAreas)
 {	// 10 ms cycle, debouncing inputs and count
+	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "pTArea->IFStatus.ComErr={}; pTArea->ftX1in.cnt_in[0]={}; u16LastState={}", pTArea->IFStatus.ComErr, pTArea->ftX1in.cnt_in[0], u16LastState);
 	if (pTArea->IFStatus.ComErr != 0)
 	{
-		printf("pT->pTArea->IFStatus.ComErr %d %d", pTArea->IFStatus.ComErr, pTArea->IFStatus.iostatus);
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "pT->pTArea->IFStatus.ComErr {} {}", pTArea->IFStatus.ComErr, pTArea->IFStatus.iostatus);
 	}
 	if (pTArea->ftX1in.cnt_in[0] != u16LastState)
-	{   // new State
+	{   //new State
 		//SPDLOG_LOGGER_TRACE(spdlog::get("console"), "SLDTransferAreaCallbackFunction: new State", 0);
 		u16Counter++;
-		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "u16Counter {}",u16Counter);
+		SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "u16Counter {}", u16Counter);
 		u16LastState = pTArea->ftX1in.cnt_in[0];
 	}
 	return true; // if you return FALSE, then the hardware update is stopped !!!
@@ -209,6 +210,14 @@ void TxtSortingLine::configInputs()
 	//save
 	pT->pTArea->ftX1state.config_id ++; // Save the new Setup
 }
+
+void TxtSortingLine::reportInputs(int* inputs)
+{
+	for(int i = 0 ; i < 8; ++i){
+		inputs[i] = pT->pTArea->ftX1in.uni[i];
+	}
+}
+
 
 
 } /* namespace ft */

@@ -22,20 +22,21 @@
 		newState = startState;
 
 #ifdef FSM_TRANSITION
- #undef FSM_TRANSITION
+#undef FSM_TRANSITION
 #endif
-#ifdef _DEBUG
- #define FSM_TRANSITION( _newState, attr... )                              \
-		do                                                                 \
+#define FSM_TRANSITION( _newState, attr... )                               \
+        do																   \
 		{                                                                  \
-			std::cerr << state2str( currentState ) << " -> "               \
-			<< state2str( _newState ) << std::endl;                        \
 			newState = _newState;                                          \
+			mqttclient->                                                   \
+			publishState(                                                  \
+			ft::TxtMultiProcessingStation::toString(currentState),         \
+			ft::TxtMultiProcessingStation::toString(_newState),            \
+			TOPIC_STATE_MPO,                                               \
+			TIMEOUT_MS_PUBLISH);                                           \
 		}                                                                  \
 		while( false )
-#else
- #define FSM_TRANSITION( _newState, attr... )  newState = _newState
-#endif
+
 
 
 namespace ft {
@@ -44,6 +45,10 @@ namespace ft {
 void TxtMultiProcessingStation::fsmStep()
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fsmStep",0);
+	reportInputs(newInputs);
+	if (copyAndCheckChanged(newInputs, oldInputs)) {
+		mqttclient->publishInput(newInputs, TOPIC_INPUT_MPO, TIMEOUT_MS_PUBLISH);
+	}
 
 	// Entry activities ===============================================
 	if( newState != currentState )

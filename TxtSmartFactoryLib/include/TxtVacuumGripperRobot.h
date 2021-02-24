@@ -376,6 +376,9 @@ public:
 protected:
 	State_t currentState;
 	State_t newState;
+	int newInputs[8] = {0};
+	int oldInputs[8] = {0};	
+
 	TxtVgrCalibPos_t calibPos;
 	TxtWPType_t calibColor;
 	int calibColorValues[3];
@@ -383,6 +386,8 @@ protected:
 	TxtVgrWorkingModes_t workingMode = TxtVgrWorkingModes_t::NORMAL;
 
 	void configInputs();
+	void reportInputs(int* inputs);
+
 	void initDashboard();
 	void move(const std::string pos3name, TxtVgrPosOrder_t order = VGRMOV_PTP);
 	void move(EncPos3 p3, TxtVgrPosOrder_t order = VGRMOV_PTP) { move(p3.x,p3.y,p3.z, order); }

@@ -31,6 +31,7 @@ TxtMultiProcessingStation::TxtMultiProcessingStation(TxtTransfer* pT, ft::TxtMqt
 	if (!calibData.existCalibFilename()) calibData.saveDefault();
 	calibData.load();
     configInputs();
+	reportInputs(oldInputs);
 }
 
 TxtMultiProcessingStation::~TxtMultiProcessingStation()
@@ -136,6 +137,13 @@ void TxtMultiProcessingStation::configInputs()
 	(pT->pTArea+1)->ftX1config.uni[4].digital = 1;
 	//save
 	(pT->pTArea+1)->ftX1state.config_id ++; // Save the new Setup
+}
+
+void TxtMultiProcessingStation::reportInputs(int* inputs)
+{
+	for(int i = 0 ; i < 8; ++i){
+		inputs[i] = pT->pTArea->ftX1in.uni[i];
+	}
 }
 
 
