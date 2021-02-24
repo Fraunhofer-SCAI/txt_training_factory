@@ -45,7 +45,9 @@ void TxtVacuumGripperRobot::fsmStep()
 {
 	SPDLOG_LOGGER_TRACE(spdlog::get("console"), "fsmStep",0);
 	reportInputs(newInputs);
-	if (copyAndCheckChanged(newInputs, oldInputs)) {
+	time_t now = time(0);
+	if (difftime(last_report_time,now) != 0) {
+		last_report_time = now;
 		mqttclient->publishInput(newInputs, TOPIC_INPUT_VGR, TIMEOUT_MS_PUBLISH);
 	}
 

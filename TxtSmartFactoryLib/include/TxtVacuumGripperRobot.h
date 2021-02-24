@@ -378,6 +378,7 @@ protected:
 	State_t newState;
 	int newInputs[8] = {0};
 	int oldInputs[8] = {0};	
+	time_t last_report_time = 0;
 
 	TxtVgrCalibPos_t calibPos;
 	TxtWPType_t calibColor;
