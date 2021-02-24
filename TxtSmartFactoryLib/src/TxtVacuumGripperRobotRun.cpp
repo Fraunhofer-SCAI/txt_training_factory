@@ -221,20 +221,21 @@ void TxtVacuumGripperRobot::fsmStep()
 			}
 			reqSLDsorted = false;
 		}
-		else if (reqOrder || !reqWP_orders.empty())
+		else if (reqOrder && !reqWP_orders.empty())
 		{	
 			reqWP_order = reqWP_orders.front();
 			reqWP_orders.pop();
 			ord_state = TxtOrderState();
 			ord_state.type = reqWP_order.type;
 			ord_state.state = ORDERED;
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "Set ord_state.state = ORDERED");
 			assert(mqttclient);
 			mqttclient->publishStateOrder(ord_state, TIMEOUT_MS_PUBLISH);
 
 			FSM_TRANSITION( FETCH_WP_VGR_ORDER, color=blue, label='req order' );
 			reqOrder = false;
 		}
-		else if ((reqPickup || !reqWP_pickups.empty()) && dps.is_DOUT())
+		else if ((reqPickup && !reqWP_pickups.empty()) && dps.is_DOUT())
 		{
 			reqWP_pickup = reqWP_pickups.front();
 			reqWP_pickups.pop();
@@ -242,6 +243,8 @@ void TxtVacuumGripperRobot::fsmStep()
 			ord_state.tag_uid = reqWP_pickup.tag_uid;
 			ord_state.type = reqWP_order.type;
 			ord_state.state = PICKUP;
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "Set ord_state.state = PICKUP");
+
 			assert(mqttclient);
 			mqttclient->publishStatePickup(ord_state, TIMEOUT_MS_PUBLISH);
 
@@ -252,6 +255,7 @@ void TxtVacuumGripperRobot::fsmStep()
 		{
 			ord_state = TxtOrderState();
 			ord_state.state = STORE;
+			SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "Set ord_state.state = STORE");
 			assert(mqttclient);
 			mqttclient->publishStateStore(ord_state, TIMEOUT_MS_PUBLISH);
 
@@ -267,6 +271,7 @@ void TxtVacuumGripperRobot::fsmStep()
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
+				SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "VGR orders WHITE");
 				requestOrder(WP_TYPE_WHITE);
 			}
 		}
@@ -274,6 +279,7 @@ void TxtVacuumGripperRobot::fsmStep()
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
+				SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "VGR orders RED");
 				requestOrder(WP_TYPE_RED);
 			}
 		}
@@ -281,6 +287,7 @@ void TxtVacuumGripperRobot::fsmStep()
 		{
 			if (ord_state.state == WAITING_FOR_ORDER)
 			{
+				SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "VGR orders BLUE");
 				requestOrder(WP_TYPE_BLUE);
 			}
 		}
@@ -706,10 +713,12 @@ void TxtVacuumGripperRobot::fsmStep()
 			mqttclient->publishVGR_Do(VGR_HBW_STORE_WP, reqWP_HBW, TIMEOUT_MS_PUBLISH);
 
 			moveRef();
-			FSM_TRANSITION( IDLE, color=green, label='fetched' );
 			if (workingMode == TxtVgrWorkingModes_t::ENDLESS && reqWP_HBW->state == WP_STATE_RAW)
 			{
 				FSM_TRANSITION( ORDER_WP, color=green, label='endless_mode: order wp' );
+			} else 
+			{
+				FSM_TRANSITION( IDLE, color=green, label='fetched' );
 			}
 			
 			reqHBWfetched = false;
