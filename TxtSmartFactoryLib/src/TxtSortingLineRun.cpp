@@ -48,7 +48,7 @@ void TxtSortingLine::fsmStep()
 
 	reportInputs(newInputs);
 	time_t now = time(0);
-	if (difftime(last_report_time,now) != 0) {
+	if (copyAndCheckChanged(newInputs, oldInputs) && difftime(last_report_time,now) != 0) {
 		last_report_time = now;
 		mqttclient->publishInput(newInputs, TOPIC_INPUT_SLD, TIMEOUT_MS_PUBLISH);
 	}
