@@ -1,6 +1,6 @@
-> If you have any questions, please contact fischertechnik-technik@fischer.de
+# Changes in this Fork
 
-> DEUTSCH: [**fischertechnik Lernfabrik 4.0 (de)**](README_de.md)
+We keep the changes described in this [pull request](https://github.com/fischertechnik/txt_training_factory/pull/5), especially the endless mode. Disabled the order queue, to avoid errors. We report once per second the raw sensor data with MQTT to 'fh/input/#' and everytime it changes the internal state of the controllers to 'fh/state/#'
 
 # fischertechnik Training Factory Industry 4.0 (en)
 This project contains the C/C++ library *TxtSmartFactoryLib* and the main and client programs for the fischertechnik [**Training Factory Industry 4.0**](https://www.fischertechnik.de/en/service/elearning/teaching/lernfabrik-4). The library requires at least the [TXT firmware version 4.5.1](https://github.com/fischertechnik/FT-TXT/releases).
